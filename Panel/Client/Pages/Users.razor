@@ -1,0 +1,97 @@
+﻿@page "/Users"
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@attribute [Authorize(Roles = "Admin, Mod")]
+<PageTitle>Users</PageTitle>
+
+<h1>Users</h1>
+
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>UUID</th>
+                <th>Username</th>
+                <th>Contact</th>
+                <th>Role</th>
+                <th>Ip List</th>
+                <th>Machine List</th>
+                <th>Active Keys</th>
+                <th>Joined Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    @if(user.Role == Role.Admin)
+                    {
+                        <td>@user.UUID</td>
+                    }
+                    else
+                    {
+                        <td><a href="/EditUser/@user.UUID">@user.UUID</a></td>
+                    }
+                    <td>@user.UserName</td>
+                    <td>@user.Contact</td>
+                    <td>@user.Role.ToString()</td>
+                    <td>
+                        <ul>
+                        @foreach(var ip in user.IPList.Split(' '))
+                        {
+                            @if (!string.IsNullOrWhiteSpace(ip))
+                            {
+                            <li>
+                                @ip
+                            </li>
+                            }
+                        }
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                        @foreach(var mach in user.MachineList.Split(' '))
+                        {
+                            @if (!string.IsNullOrWhiteSpace(mach))
+                            {
+                            <li>
+                                @mach
+                            </li>
+                            }
+                        }
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                        @foreach(var key in user.ActiveKeys)
+                        {
+                            @if (key != default && key.IsValid)
+                            {
+                            <li>
+                                @key.ProductKey
+                            </li>
+                            }
+                        }
+                        </ul>
+                    </td>
+                    <td>@user.Joined.ToShortDateString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private User[]? users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await Http.GetFromJsonAsync<User[]>("api/User");
+    }
+}

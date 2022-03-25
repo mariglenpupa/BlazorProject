@@ -1,0 +1,86 @@
+﻿@page "/EditUser/{UUID}"
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@inject NavigationManager _navManager
+@attribute [Authorize(Roles = "Admin, Mod")]
+
+<PageTitle>Edit User</PageTitle>
+@if (user == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+<div class="modal fade show d-block mt-5">  
+    <div class="modal-dialog border rounded" role="document">  
+        <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.6);">  
+            <div class="modal-header">  
+                <h3 style="margin-top:7px">Edit User</h3>  
+                <a class="btn text-white" @onclick="@Close">X</a> 
+            </div>  
+            <div class="modal-body">  
+                <EditForm OnSubmit="@HandleSubmit" Model="user">
+                    <div class="form-group">
+                        <label for="name">user Name: </label>  
+                        <InputText id="name" class="form-control mt-2 mb-4 text-white" 
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@user.UserName">@user.UserName</InputText>  
+                    </div>  
+                    <div class="form-group">  
+                        <label>Role: </label>  
+                        <select @bind="@user.Role" class="form-select mt-1 text-white" style="background-color:rgba(150, 150, 150, 0.2);">
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Role.Visitor">@Role.Visitor</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Role.User" selected>@Role.User</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Role.Mod">@Role.Mod</option>
+                        </select>
+                    </div>  
+                    <button type="submit" class="btn btn-success mt-2">Update User</button>  
+                </EditForm>
+            </div>  
+        </div>  
+    </div>  
+</div>
+}
+
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+@code {
+    User user = new User();
+    [Parameter]
+    public string? UUID { get; set; }
+    string error = "";
+
+    async Task HandleSubmit()
+    {
+        var res = await Http.PostAsJsonAsync<User>("/api/User/UpdateUser", user);
+        if (res.IsSuccessStatusCode)
+        {
+            _navManager.NavigateTo("/Users", false);
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await Http.GetAsync("api/User/Getuser/" + UUID);
+        if (res.IsSuccessStatusCode)
+        {
+            user = (await res.Content.ReadFromJsonAsync<User>())!;
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    void Close() => _navManager.NavigateTo("/Users", false);
+}

@@ -1,0 +1,59 @@
+﻿@page "/Login"
+@using Microsoft.AspNetCore.Authorization
+@using Panel.Shared.Classes
+@inject NavigationManager _navManager
+@inject HttpClient _httpClient
+@inject ILocalStorageService LocalStorage
+
+<div class="modal-dialog border rounded" role="document">  
+    <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.2);">  
+        <div class="modal-header">  
+                <h3 style="margin-top:7px">Please Login</h3>  
+            </div>  
+        <div class="modal-body">  
+            <EditForm OnSubmit="@LoginUser" Model="user">  
+                <div class="form-group">  
+                    <label for="name">User Name: </label>  
+                    <InputText id="name" class="form-control mt-2 mb-4 text-white" 
+                            style="background-color:rgba(150, 150, 150, 0.2);"
+                            @bind-Value="@user.UserName" placeholder="Name"></InputText>  
+                </div>  
+                <div class="form-group">  
+                    <label for="version">Password: </label>  
+                    <InputText id="version" class="form-control mt-2 text-white"
+                            style="background-color:rgba(150, 150, 150, 0.2);"
+                            @bind-Value="@user.Password" type="password" placeholder="PassW0rd!"></InputText>  
+                </div>
+                <a class="btn text-white" style="float:right;" @onclick="@Register">Register Instead</a> 
+                <center>
+                    <button type="submit" class="btn btn-success w-75">Login</button>  
+                </center>
+            </EditForm>
+        </div>  
+    </div>  
+</div>  
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+}
+
+@code {
+    User user = new User();
+    string error = "";
+    public async Task LoginUser()
+    {
+        var res = await _httpClient.PostAsJsonAsync<User>("/api/User/LogIn", user);
+        var token = await res.Content.ReadAsStringAsync();
+
+        // Check for errors then set token.
+        if (string.IsNullOrWhiteSpace(token) || token.Contains("error", StringComparison.OrdinalIgnoreCase))
+        {
+            error = token;
+            return;
+        }
+        await LocalStorage.SetItemAsync("token", token);
+        _navManager.NavigateTo("/", true);
+    }
+
+    void Register() => _navManager.NavigateTo("/Register", false);
+}

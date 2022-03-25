@@ -1,0 +1,111 @@
+﻿@page "/Products"
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@attribute [Authorize(Roles = "Admin")]
+<PageTitle>Products</PageTitle>
+
+<h1>Products</h1>
+
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+
+@if (products == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Current Version</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in products)
+            {
+                <tr>
+                    <td>@product.Id</td>
+                    <td>@product.Name</td>
+                    <td>@product.Version</td>
+                    <td><a href="/EditProduct/@product.Id">📝</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+<button class="btn btn-primary" @onclick="() => this.showDialog = true">Add Product</button>
+@if (showDialog)
+{ 
+<div class="modal fade show d-block mt-5" id="exampleModal" tabindex="-1" role="dialog">  
+    <div class="modal-dialog border rounded" role="document">  
+        <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.6);">  
+            <div class="modal-header">  
+                <h3 style="margin-top:7px">Add Product</h3>  
+                <a class="btn text-white" @onclick="@Close">X</a> 
+            </div>  
+            <div class="modal-body">  
+                <EditForm OnSubmit="@HandleSubmit" Model="product">  
+                    <div class="form-group">  
+                        <label for="name">Product Name: </label>  
+                        <InputText id="name" class="form-control mt-2 mb-4 text-white" 
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@product.Name" placeholder="Name"></InputText>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="version">Version: </label>  
+                        <InputText id="version" class="form-control mt-2 text-white"
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@product.Version" placeholder="1.0.0.0"></InputText>  
+                    </div>  
+                    <button type="submit" class="btn btn-success mt-2">Add Product</button>  
+                </EditForm>
+            </div>  
+        </div>  
+    </div>  
+</div>  
+}
+@code {
+    List<Product> products = new List<Product>();
+    Product product = new Product();
+    bool showDialog = false;
+    string error = "";
+
+    async void HandleSubmit()
+    {
+        showDialog = false;
+        var res = await Http.PostAsJsonAsync<Product>("api/Product/CreateProduct", product);
+        var content = await res.Content.ReadAsStringAsync();
+        if (!res.IsSuccessStatusCode)
+        {
+            error = content;
+            Console.WriteLine("Error With Request!");
+        }
+        else
+        {
+            var item = await res.Content.ReadFromJsonAsync<Product>();
+            products.Add(item!);
+            StateHasChanged();
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await Http.GetAsync("api/Product/GetProducts");
+        if (res.IsSuccessStatusCode)
+        {
+            products = (await res.Content.ReadFromJsonAsync<List<Product>>())!;
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    void Close() => showDialog = false;
+}

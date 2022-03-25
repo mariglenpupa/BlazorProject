@@ -1,0 +1,95 @@
+﻿@page "/EditKey/{Id:int}"
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@inject NavigationManager _navManager
+@attribute [Authorize(Roles = "Admin,Mod")]
+
+<PageTitle>Edit Key</PageTitle>
+@if (key == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+<div class="modal fade show d-block mt-5">  
+    <div class="modal-dialog border rounded" role="document">  
+        <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.6);">  
+            <div class="modal-header">  
+                <h3 style="margin-top:7px">Edit Key</h3>  
+                <a class="btn text-white" @onclick="@Close">X</a>
+            </div>
+            <div class="modal-body">
+                <EditForm OnSubmit="@HandleSubmit" Model="key">
+                    <div class="form-group">
+                        <label for="pkey">Product Key: </label>
+                        <InputText id="pkey" class="form-control mt-1 text-white"
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@key.ProductKey" placeholder="1.0.0.0"></InputText>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="lspan">License Length (in months): </label>
+                        <InputNumber id="lspan" class="form-control mt-1 text-white" 
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@LicenseSpan"></InputNumber>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label>Package: </label>  
+                        <select @bind="key.Package" class="form-select mt-1 text-white" style="background-color:rgba(150, 150, 150, 0.2);">
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Basic" selected>@Package.Basic</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Standard">@Package.Standard</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Premium">@Package.Premium</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-2">Update Key</button>
+                </EditForm>
+            </div>
+        </div>  
+    </div>  
+</div>
+}
+
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+@code {
+    Key key = new Key();
+    int LicenseSpan = 1;
+
+    [Parameter]
+    public int Id { get; set; }
+    string error = "";
+
+    async Task HandleSubmit()
+    {
+        key.LicenseLength = TimeSpan.FromDays(LicenseSpan * 30);
+        var res = await Http.PostAsJsonAsync<Key>("/api/Key/UpdateKey", key);
+        if (res.IsSuccessStatusCode)
+        {
+            _navManager.NavigateTo("/Keys", false);
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await Http.GetAsync("api/Key/GetKey/" + Id);
+        if (res.IsSuccessStatusCode)
+        {
+            key = (await res.Content.ReadFromJsonAsync<Key>())!;
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    void Close() => _navManager.NavigateTo("/Keys", false);
+}

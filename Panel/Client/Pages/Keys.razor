@@ -1,0 +1,166 @@
+﻿@page "/Keys"
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@attribute [Authorize(Roles = "Admin, Mod")]
+<PageTitle>Keys</PageTitle>
+
+<h1>Keys</h1>
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+
+@if (keys == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Key</th>
+                <th>Product</th>
+                <th>Package</th>
+                <th>Added By</th>
+                <th>User</th>
+                <th>License Length</th>
+                <th>Start Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var key in keys!)
+            {
+                <tr>
+                    <td>@key.Id</td>
+                    <td><a href="/EditKey/@key.Id">@key.ProductKey</a></td>
+                    <td>@key.ProductName</td>
+                    <td>@key.Package.ToString()</td>
+                    <td>@key.AddedBy</td>
+                    <td>@key.User?.UserName</td>
+                    <td>@(key.LicenseLength.Days / 30) months</td>
+                    @if (key.StartDate != @DateTime.MinValue) 
+                    {
+                        <td>@key.StartDate.ToShortDateString()</td>
+                    }
+                    else 
+                    {
+                        <td></td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+<button class="btn btn-primary" @onclick="() => this.showDialog = true">Add Key</button>
+@if (showDialog)
+{
+<div class="modal fade show d-block mt-5" id="exampleModal" tabindex="-1" role="dialog">  
+    <div class="modal-dialog border rounded" role="document">  
+        <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.6);">  
+            <div class="modal-header">  
+                <h3 style="margin-top:7px">Add Key</h3>  
+                <a class="btn text-white" @onclick="@Close">X</a> 
+            </div>
+            <div class="modal-body">
+                <EditForm OnSubmit="@HandleSubmit" Model="key">  
+                    <div class="form-group">
+                        <label for="pkey">Product Key: </label>  
+                        <InputText id="pkey" class="form-control mt-1 text-white"
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@key.ProductKey" placeholder="1.0.0.0"></InputText>  
+                    </div>
+                    <div class="form-group mt-3">  
+                        <label for="lspan">License Length (in months): </label>  
+                        <InputNumber id="lspan" class="form-control mt-1 text-white" 
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@LicenseSpan"></InputNumber>  
+                    </div>
+                    <div class="form-group mt-3">  
+                        <label>Package: </label>  
+                        <select @bind="key.Package" class="form-select mt-1 text-white" style="background-color:rgba(150, 150, 150, 0.2);">
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Basic" selected>@Package.Basic</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Standard">@Package.Standard</option>
+                                <option class="text-white" style="background-color:rgba(150, 150, 150, 0.2);"
+                                        value="@Package.Premium">@Package.Premium</option>
+                        </select>
+                    </div>
+                    <div class="form-group mt-3">  
+                        <label>Product: </label>  
+                        <select @bind="key.ProductName" class="form-select mt-1 text-white" style="background-color:rgba(150, 150, 150, 0.2);">
+                                @if (products != default)
+                                {
+                                    @foreach (var prod in products)
+                                    {
+                                        <option class="text-white" value="@prod.Name">@prod.Name</option>
+                                    }
+                                }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-2">Add Key</button>  
+                </EditForm>
+            </div>  
+        </div>  
+    </div>  
+</div>  
+}
+@code {
+    List<Key> keys = new List<Key>();
+    Key key = new Key()
+    {
+        ProductKey = Guid.NewGuid().ToString(),
+        LicenseLength = TimeSpan.FromDays(30)
+    };
+    Product[]? products;
+    bool showDialog = false;
+    string error = "";
+    int LicenseSpan = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get Keys
+        var res = await Http.GetAsync("api/Key/GetKeys");
+        if (res.IsSuccessStatusCode)
+        {
+            keys = (await res.Content.ReadFromJsonAsync<List<Key>>())!;
+
+            // Get Product List
+            products = await Http.GetFromJsonAsync<Product[]>("api/Product/GetProducts");
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+    async Task HandleSubmit()
+    {
+        // Get token set key.AddedBy to token.
+        var token = await LocalStorage.GetItemAsStringAsync("token");
+        key.AddedBy = token;
+        key.LicenseLength = TimeSpan.FromDays(LicenseSpan * 30);
+
+        var res = await Http.PostAsJsonAsync("api/Key/CreateKey", key);
+        if (res.IsSuccessStatusCode)
+        {
+            var _key = await res.Content.ReadFromJsonAsync<Key>();
+            keys.Add(_key!);
+            Close();
+            key = new Key()
+            {
+                ProductKey = Guid.NewGuid().ToString(),
+                LicenseLength = TimeSpan.FromDays(30)
+            };
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    void Close() => showDialog = false;
+}

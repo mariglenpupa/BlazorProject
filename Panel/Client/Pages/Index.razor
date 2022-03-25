@@ -1,0 +1,74 @@
+﻿@page "/"
+@using Syncfusion.Blazor
+@using Syncfusion.Blazor.Charts
+@using Panel.Shared.Classes
+@inject HttpClient Http
+@attribute [Authorize(Roles = "Admin,Mod")]
+<PageTitle>Home</PageTitle>
+
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+
+@if (Stats == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+<div class="control-section" align='center'>
+    <SfChart Title="Sales" Width="@Width" Theme="Theme.TailwindDark">
+        <ChartArea><ChartAreaBorder Width="0"></ChartAreaBorder></ChartArea>
+        <ChartPrimaryXAxis TickPosition="AxisPosition.Inside" LabelPosition="AxisPosition.Inside" ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Interval="1">
+            <ChartAxisMajorGridLines Width="0"></ChartAxisMajorGridLines>
+            <ChartAxisLabelStyle Color="#ffffff"></ChartAxisLabelStyle>
+        </ChartPrimaryXAxis>
+        <ChartPrimaryYAxis Minimum="0" Maximum="10" Interval="1">
+            <ChartAxisLineStyle Width="0"></ChartAxisLineStyle>
+            <ChartAxisLabelStyle Color="transparent"></ChartAxisLabelStyle>
+            <ChartAxisMajorGridLines Width="0"></ChartAxisMajorGridLines>
+            <ChartAxisMinorGridLines Width="0"></ChartAxisMinorGridLines>
+            <ChartAxisMajorTickLines Width="0"></ChartAxisMajorTickLines>
+            <ChartAxisMinorTickLines Width="0"></ChartAxisMinorTickLines>
+        </ChartPrimaryYAxis>
+        <ChartSeriesCollection>
+            <ChartSeries DataSource="@Stats" XName="PoructName" YName="Count" Type="ChartSeriesType.Column">
+                <ChartMarker>
+                    <ChartDataLabel Visible="true" Position="LabelPosition.Top">
+                        <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                    </ChartDataLabel>
+                </ChartMarker>
+                <ChartCornerRadius BottomLeft="10" BottomRight="10" TopLeft="10" TopRight="10"></ChartCornerRadius>
+            </ChartSeries>
+        </ChartSeriesCollection>
+        <ChartTooltipSettings Enable="true"></ChartTooltipSettings>
+        <ChartLegendSettings Visible="false"></ChartLegendSettings>
+    </SfChart>
+</div>
+}
+@code{
+    public string Width { get; set; } = "60%";
+    List<Stat> Stats { get; set; } = new List<Stat>();
+    string error = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await Http.GetAsync("api/Info/GetSales");
+        if (!res.IsSuccessStatusCode)
+            error = res.StatusCode.ToString();
+        Stats = (await res.Content.ReadFromJsonAsync<List<Stat>>())!;
+        StateHasChanged();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if(firstRender)
+        {
+            Width = "100%";
+            StateHasChanged();
+        }
+    }
+}

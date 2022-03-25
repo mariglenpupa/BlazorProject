@@ -1,0 +1,41 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager _navManager
+@inject HttpClient _httpClient
+@inject ILocalStorageService LocalStorage
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <AuthorizeView>
+            <Authorized>
+                <div class="top-row px-4 center">
+                    <h3 style="margin-top:10px; margin-right:5px"><b>Welcome, @context.User.Identity?.Name! </b></h3>
+                    <button class="btn btn-danger" @onclick="LogOutUser">Log Out</button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="top-row px-4">
+                    <button class="btn btn-danger" @onclick="LogInUser">Log In</button>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+@code {
+    private async Task LogOutUser()
+    {
+        await LocalStorage.RemoveItemAsync("token");
+        _navManager.NavigateTo("/", true);
+    }
+    private void LogInUser()
+    {
+        _navManager.NavigateTo("/Login", false);
+    }
+}

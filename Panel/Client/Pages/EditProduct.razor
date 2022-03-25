@@ -1,0 +1,116 @@
+﻿@page "/EditProduct/{Id:int}"
+@using Panel.Shared.Classes
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject NavigationManager _navManager
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Edit Product</PageTitle>
+@if (product == default)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+<div class="modal fade show d-block mt-5">
+    <div class="modal-dialog border rounded" role="document">
+        <div class="modal-content" style="background-color:rgba(150, 150, 150, 0.6);">  
+            <div class="modal-header">  
+                <h3 style="margin-top:7px">Edit Product</h3>
+                <a class="btn text-white" @onclick="@Close">X</a> 
+            </div>  
+            <div class="modal-body">
+                <EditForm OnSubmit="@HandleSubmit" Model="product">
+                    <InputNumber hidden @bind-Value="@product.Id"/>
+                    <div class="form-group">  
+                        <label for="name">Product Name: </label>
+                        <InputText id="name" class="form-control mt-2 mb-4 text-white" 
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@product.Name">@product.Name</InputText>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="version">Version: </label>  
+                        <InputText id="version" class="form-control mt-2 mb-4 text-white"
+                                style="background-color:rgba(150, 150, 150, 0.2);"
+                                @bind-Value="@product.Version">@product.Version</InputText>  
+                    </div>
+                    <div class="form-group">  
+                        <label for="version">File: </label>
+                        <InputFile class="mt-2 d-block" OnChange="@SelectFile" />
+                    </div>
+                    <button type="submit" class="btn btn-success mt-2">Update Product</button>  
+                </EditForm>
+            </div>  
+        </div>  
+    </div>  
+</div>
+}
+
+@if (error != "")
+{
+    <p><em>Error: @error</em></p>
+    return;
+}
+@code {
+    Product product = new Product();
+    [Parameter]
+    public int Id { get; set; }
+    string error = "";
+
+    StreamContent? fileContent;
+
+    private void SelectFile(InputFileChangeEventArgs e)
+    {
+        long maxFileSize = 1024 * 1024 * 100;
+        fileContent = new StreamContent(e.File.OpenReadStream(maxFileSize));
+    }
+
+    async Task HandleSubmit()
+    {
+        // Update Product
+        var res = await Http.PostAsJsonAsync<Product>("/api/Product/UpdateProduct", product);
+        if (!res.IsSuccessStatusCode)
+        {
+            error = "UpProduct: " + res.StatusCode.ToString();
+            return;
+        }
+
+        // Upload File
+        if (fileContent is null)
+        {
+            error = "Invalid File!";
+            return;
+        }
+
+        using var content = new MultipartFormDataContent();
+        content.Add(
+             content: fileContent!,
+             name: "\"file\"",
+             fileName: product.Name);
+
+        var response = await Http.PostAsync("api/File/UpdateProduct", content);
+        if (res.IsSuccessStatusCode)
+        {
+            _navManager.NavigateTo("/Products", false);
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await Http.GetAsync("api/Product/GetProduct/" + Id);
+        if (res.IsSuccessStatusCode)
+        {
+            product = (await res.Content.ReadFromJsonAsync<Product>())!;
+        }
+        else
+        {
+            error = res.StatusCode.ToString();
+        }
+    }
+
+    void Close() => _navManager.NavigateTo("/Products", false);
+}
